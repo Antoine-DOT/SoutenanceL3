@@ -21,7 +21,6 @@ if [[ -n $vuln_packages ]]; then
 else
     echo "Aucune vulnérabilité trouvée dans les paquets installés."
 fi
-
 # Vérification de l'état des ports
 echo "Vérification de l'état des ports..."
 echo "Port,Élément,État" >> "$results_csv"
