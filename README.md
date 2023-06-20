@@ -44,11 +44,12 @@ git push
 
 Cela enverra vos modifications vers le référentiel GitHub, les rendant accessibles à tous les collaborateurs.
 
-Maintenant, à chaque fois 
+En résumé
 
 faites dans cette ordre là 
 
 git pull (pour être à jour et commencer à travailler)
+git add . (pour ajouter vos modification)
 git commit -m 'message' (pour enregistrer votre code)
 git push (pour le rendre accessible à tout le monde)
 
