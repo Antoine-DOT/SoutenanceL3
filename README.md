@@ -33,9 +33,9 @@ Cela ajoutera toutes les modifications que vous avez effectuées.
 Un commit est une validation de vos modifications. Avant de l'effectuer, assurez-vous d'avoir un message clair décrivant les changements que vous avez apportés. Dans votre terminal, exécutez la commande suivante :
 
 
-git commit -m 'Ajout de fonctionnalité X' 
+git commit -m 'Ajout de fonctionnalité'
 
-Remplacez 'Ajout de fonctionnalité X' par un message approprié à vos modifications.
+Remplacez 'Ajout de fonctionnalité' par un message approprié à vos modifications.
 
 Étape 5 : Envoyer les modifications
 Maintenant que vous avez effectué un commit, vous devez envoyer vos modifications vers le référentiel distant sur GitHub. Dans votre terminal, exécutez la commande suivante :
