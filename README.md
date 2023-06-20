@@ -18,3 +18,9 @@ A chaque fois que avez fini de coder, vous devez taper
 
 git commit -m 'message' 
 
+puis
+
+git push
+
+
+
