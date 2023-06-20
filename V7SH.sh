@@ -5,7 +5,6 @@ if [[ $EUID -ne 0 ]]; then
    echo "Ce script doit être exécuté en tant que superutilisateur."
    exit 1
 fi
-
 # Mettre à jour la liste des paquets
 apt update
 
