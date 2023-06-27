@@ -1,0 +1,31 @@
+Import-Module BitLocker
+# Récupération des mises à jour de sécurité installées
+$securityUpdates = Get-HotFix | Where-Object { $_.HotFixID -like "KB*" }
+
+# Vérification si des mises à jour de sécurité sont installées
+if ($securityUpdates) {
+    $latestInstalledKB = $securityUpdates | Sort-Object -Property InstalledOn -Descending | Select-Object -First 1
+    $latestInstalledKBNumber = $latestInstalledKB.HotFixID
+    $latestInstalledKBDate = $latestInstalledKB.InstalledOn
+
+    $latestAvailableKB = Get-WmiObject -Class Win32_QuickFixEngineering | Select-Object -ExpandProperty HotFixID | Sort-Object -Descending | Select-Object -First 1
+
+    Write-Output "Dernière KB installée sur le poste : $latestInstalledKBNumber (Installée le : $latestInstalledKBDate)"
+    Write-Output "Dernière KB disponible : $latestAvailableKB"
+    Write-Output ""
+
+    # Vérification si la dernière mise à jour installée est la plus récente disponible
+    if ($latestInstalledKBNumber -eq $latestAvailableKB) {
+        Write-Output "Le poste est à jour avec la dernière mise à jour de sécurité $latestInstalledKBNumber installée le $latestInstalledKBDate."
+    } else {
+        Write-Output "Le poste n'est pas à jour avec la dernière mise à jour de sécurité installée le $latestInstalledKBDate."
+    }
+} else {
+    Write-Output "Aucune mise à jour de sécurité n'est installée sur le poste."
+}
+
+
+
+
+
+
