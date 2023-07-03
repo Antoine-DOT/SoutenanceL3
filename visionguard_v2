@@ -1,0 +1,76 @@
+# Vérifier si le répertoire "visionguard" existe, sinon le créer
+$repertoire = "C:\visionguard"
+if (-not (Test-Path -Path $repertoire -PathType Container)) {
+    New-Item -ItemType Directory -Path $repertoire | Out-Null
+}
+
+# Chemin du fichier CSV
+$date = Get-Date -Format "yyyyMMdd_HHmmss"
+$cheminFichier = Join-Path -Path $repertoire -ChildPath "VGExploit$date.csv"
+
+# Importer le module BitLocker
+Import-Module BitLocker
+
+# Récupération de l'état de BitLocker
+$encryptionStatus = Get-BitLockerVolume | Select-Object -ExpandProperty EncryptionPercentage
+
+$bitlockerStatus = if ($encryptionStatus) {
+    "BitLocker est activé sur le poste. Statut de chiffrement : $encryptionStatus%."
+} else {
+    "BitLocker n'est pas activé sur le poste."
+}
+
+# Afficher le statut de BitLocker
+Write-Output $bitlockerStatus
+
+# Récupération des mises à jour de sécurité installées
+$securityUpdates = Get-HotFix | Where-Object { $_.HotFixID -like "KB*" }
+
+# Vérification si des mises à jour de sécurité sont installées
+if ($securityUpdates) {
+    $latestInstalledKB = $securityUpdates | Sort-Object -Property InstalledOn -Descending | Select-Object -First 1
+    $latestInstalledKBNumber = $latestInstalledKB.HotFixID
+    $latestInstalledKBDate = $latestInstalledKB.InstalledOn
+
+    $latestAvailableKB = Get-WmiObject -Class Win32_QuickFixEngineering | Select-Object -ExpandProperty HotFixID | Sort-Object -Descending | Select-Object -First 1
+
+    $kbStatus = if ($latestInstalledKBNumber -eq $latestAvailableKB) {
+        "Le poste est à jour avec la dernière mise à jour de sécurité $latestInstalledKBNumber installée le $latestInstalledKBDate."
+    } else {
+        "Le poste n'est pas à jour avec la dernière mise à jour de sécurité installée le $latestInstalledKBDate. Dernière KB disponible : $latestAvailableKB"
+    }
+
+    # Afficher le statut des mises à jour de sécurité
+    Write-Output $kbStatus
+} else {
+    $kbStatus = "Aucune mise à jour de sécurité n'est installée sur le poste."
+    Write-Output $kbStatus
+}
+
+# Récupération des droits des utilisateurs
+$userRights = Get-LocalUser | Select-Object Name, PrincipalSource, Enabled, PasswordChangeableDays, PasswordExpires, LastLogon, PasswordRequired
+
+# Afficher les droits des utilisateurs
+Write-Output "Droits des utilisateurs :"
+$userRights
+
+# Récupération des noms d'utilisateurs
+$userNames = $userRights | Select-Object -ExpandProperty Name
+
+# Création des objets pour exporter dans le fichier CSV
+$objects = [PSCustomObject]@{
+    'Statut BitLocker' = $bitlockerStatus
+    'StatutMisesAJourSecurite' = $kbStatus
+}
+
+# Ajouter les propriétés des droits des utilisateurs aux objets pour l'export CSV
+$userRights | ForEach-Object {
+    $userRight = $_
+    $objects | Add-Member -MemberType NoteProperty -Name $userRight.Name -Value $userRight
+}
+
+# Exporter les objets vers le fichier CSV
+$objects | Export-Csv -Path $cheminFichier -NoTypeInformation
+
+# Afficher le chemin du fichier CSV
+Write-Output "Le fichier CSV a été créé : $cheminFichier"
