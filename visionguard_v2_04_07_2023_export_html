@@ -1,0 +1,154 @@
+# Vérifier si le répertoire "visionguard" existe, sinon le créer
+$repertoire = "C:\visionguard"
+if (-not (Test-Path -Path $repertoire -PathType Container)) {
+    New-Item -ItemType Directory -Path $repertoire | Out-Null
+}
+
+# Chemin du fichier CSV
+$date = Get-Date -Format "yyyyMMdd_HHmmss"
+$cheminFichier = Join-Path -Path $repertoire -ChildPath "VGExploit$date.csv"
+
+# Importer le module BitLocker
+Import-Module BitLocker
+
+# Récupération de l'état de BitLocker
+$encryptionStatus = Get-BitLockerVolume | Select-Object -ExpandProperty EncryptionPercentage
+
+$bitlockerStatus = if ($encryptionStatus) {
+    "True"
+} else {
+    "False"
+}
+
+# Afficher le statut de BitLocker
+Write-Output "BitLocker activé : $bitlockerStatus"
+
+# Récupération des mises à jour de sécurité installées
+$securityUpdates = Get-HotFix | Where-Object { $_.HotFixID -like "KB*" }
+
+# Vérification si des mises à jour de sécurité sont installées
+if ($securityUpdates) {
+    $latestInstalledKB = $securityUpdates | Sort-Object -Property InstalledOn -Descending | Select-Object -First 1
+    $latestInstalledKBNumber = $latestInstalledKB.HotFixID
+
+    $latestAvailableKB = Get-WmiObject -Class Win32_QuickFixEngineering | Select-Object -ExpandProperty HotFixID | Sort-Object -Descending | Select-Object -First 1
+
+    # Afficher les mises à jour de sécurité
+    Write-Output "Dernière KB disponible : $latestAvailableKB"
+    Write-Output "Dernières KB installées : $($securityUpdates.HotFixID -join ', ')"
+} else {
+    Write-Output "Aucune mise à jour de sécurité n'est installée sur le poste."
+}
+
+# Récupération des droits des utilisateurs
+$userRights = Get-LocalUser | Select-Object Name, PrincipalSource, Enabled, PasswordChangeableDays, PasswordExpires, LastLogon, PasswordRequired
+
+# Création des objets pour exporter dans le fichier CSV
+$objects = @()
+
+# Créer les objets pour chaque utilisateur
+$userRights | ForEach-Object {
+    $userRight = $_
+    $userObject = [PSCustomObject]@{
+        'BitLocker' = $bitlockerStatus
+        'Utilisateur' = $userRight.Name
+        'Privilèges et droits' = $null
+        'Dernière KB disponible' = $latestAvailableKB
+        'Dernières KB installées' = $($securityUpdates.HotFixID -join ', ')
+    }
+
+    # Ajouter les privilèges et droits s'ils existent
+    if ($userRight.PasswordRequired -or $userRight.PasswordChangeableDays) {
+        $privilegesAndRights = "Privilèges : "
+        if ($userRight.PasswordRequired) {
+            $privilegesAndRights += "Mot de passe requis"
+        }
+        if ($userRight.PasswordChangeableDays) {
+            $privilegesAndRights += ", Changement de mot de passe tous les $userRight.PasswordChangeableDays jours"
+        }
+        $userObject.'Privilèges et droits' = $privilegesAndRights
+    }
+
+    $objects += $userObject
+}
+
+# Exporter les objets vers le fichier CSV
+$objects | Export-Csv -Path $cheminFichier -NoTypeInformation
+
+# Afficher le chemin du fichier CSV
+Write-Output "Le fichier CSV a été créé : $cheminFichier"
+
+# Exporter le rapport au format HTML avec une présentation soignée
+$rapportHTML = @"
+<html>
+<head>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 40px;
+}
+
+h1 {
+    color: #333;
+}
+
+table {
+    border-collapse: collapse;
+    margin-top: 20px;
+    width: 100%;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+th {
+    background-color: #f2f2f2;
+}
+
+.logo {
+    display: block;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+</style>
+</head>
+<body>
+<div class="logo">
+
+<img src="./img.png" alt="Logo" width="200">
+ 
+</div>
+<h1 style="color: blue;">Rapport VisionGuard - $(Get-Date -Format "dd/MM/yyyy HH:mm")</h1>
+
+<h2>Statut BitLocker</h2>
+<p>BitLocker activé : $bitlockerStatus</p>
+
+<h2>Mises à jour de sécurité</h2>
+<p style="color: green;">Dernière KB disponible : $latestAvailableKB</p>
+<p>Dernières KB installées : $($securityUpdates.HotFixID -join ', ')</p>
+
+<h2>Droits des utilisateurs</h2>
+<table>
+    <tr>
+        <th>Utilisateur</th>
+        <th>Privilèges et droits</th>
+    </tr>
+    $(
+        foreach ($userObject in $objects) {
+            "<tr><td>$($userObject.Utilisateur)</td><td>$($userObject.'Privilèges et droits')</td></tr>"
+        }
+    )
+</table>
+</body>
+</html>
+"@
+
+# Enregistrement du rapport au format HTML
+$cheminRapportHTML = Join-Path -Path $repertoire -ChildPath "VGExploit$date.html"
+$rapportHTML | Out-File -FilePath $cheminRapportHTML -Encoding UTF8
+
+# Afficher le chemin du fichier HTML
+Write-Output "Le fichier HTML a été créé : $cheminRapportHTML"
